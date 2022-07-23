@@ -1,0 +1,28 @@
+{
+  // IntelliSense を使用して利用可能な属性を学べます。
+  // 既存の属性の説明をホバーして表示します。
+  // 詳細情報は次を確認してください: https://go.microsoft.com/fwlink/?linkid=830387
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "type": "java",
+      "name": "Launch Current File",
+      "request": "launch",
+      "mainClass": "${file}"
+    },
+    {
+      "type": "java",
+      "name": "Launch ExampleAuthServerApplication",
+      "request": "launch",
+      "mainClass": "info.sw0.ts_react_oauth.example_auth_server.ExampleAuthServerApplication",
+      "projectName": "example-auth-server"
+    },
+    {
+      "type": "java",
+      "name": "Launch ExampleResourceServerApplication",
+      "request": "launch",
+      "mainClass": "info.sw0.ts_react_oauth.example_resource_server.ExampleResourceServerApplication",
+      "projectName": "example-resource-server"
+    }
+  ]
+}
