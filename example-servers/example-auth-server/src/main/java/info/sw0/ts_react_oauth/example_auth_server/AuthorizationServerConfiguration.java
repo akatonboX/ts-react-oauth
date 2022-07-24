@@ -6,10 +6,10 @@ import java.security.interfaces.RSAPrivateKey;
 import java.security.interfaces.RSAPublicKey;
 import java.time.Duration;
 import java.util.Collections;
-import java.util.HashSet;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 import org.springframework.context.annotation.Bean;
@@ -31,6 +31,11 @@ import org.springframework.security.oauth2.server.authorization.config.TokenSett
 import org.springframework.security.oauth2.server.authorization.token.JwtEncodingContext;
 import org.springframework.security.oauth2.server.authorization.token.OAuth2TokenCustomizer;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.web.cors.CorsConfiguration;
+import org.springframework.web.cors.CorsConfigurationSource;
+import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
+import org.springframework.web.servlet.config.annotation.CorsRegistry;
+import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
 import com.nimbusds.jose.jwk.JWKSet;
 import com.nimbusds.jose.jwk.RSAKey;
@@ -46,8 +51,25 @@ public class AuthorizationServerConfiguration  {
   @Order(Ordered.HIGHEST_PRECEDENCE)
   public SecurityFilterChain authServerSecurityFilterChain(HttpSecurity http) throws Exception {
       OAuth2AuthorizationServerConfiguration.applyDefaultSecurity(http);
-      return http.formLogin(Customizer.withDefaults()).build();
+      http.formLogin(Customizer.withDefaults());
+      http.csrf().disable();
+      http.cors().configurationSource(
+        ((Supplier<CorsConfigurationSource >) () -> {
+          var corsConfiguration = new CorsConfiguration();
+          corsConfiguration.addAllowedOrigin("http://127.0.0.1:3000");
+          corsConfiguration.addAllowedOrigin("http://localhost:3000");
+          corsConfiguration.addAllowedHeader(CorsConfiguration.ALL);
+          corsConfiguration.addAllowedMethod(CorsConfiguration.ALL);
+          corsConfiguration.setAllowCredentials(true);
+          var corsSource = new UrlBasedCorsConfigurationSource();
+          corsSource.registerCorsConfiguration("/**", corsConfiguration);
+          return corsSource;
+        }).get()
+      );
+      return http.build();
   }
+
+  
 
   @Bean
   public RegisteredClientRepository registeredClientRepository() {
@@ -57,7 +79,8 @@ public class AuthorizationServerConfiguration  {
       .clientAuthenticationMethod(ClientAuthenticationMethod.CLIENT_SECRET_BASIC)
       .authorizationGrantType(AuthorizationGrantType.AUTHORIZATION_CODE)
       .authorizationGrantType(AuthorizationGrantType.REFRESH_TOKEN)
-      .redirectUri("http://127.0.0.1:8080/authorized")
+      .redirectUri("http://127.0.0.1:3000/oauth/authorized")
+      //.redirectUri("http://localhost:3000/oauth/authorized")
       .scope(OidcScopes.OPENID)
       .scope(OidcScopes.EMAIL)
       .scope(OidcScopes.PROFILE)
@@ -68,7 +91,7 @@ public class AuthorizationServerConfiguration  {
 
     return new InMemoryRegisteredClientRepository(registeredClient);
   }
-
+  
   @Bean
   public JWKSource<SecurityContext> jwkSource() {
     RSAKey rsaKey = generateRsa();
