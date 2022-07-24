@@ -1,4 +1,5 @@
 import { Link } from "react-router-dom";
+import { NavigateComponent } from "../component/navigateComponent ";
 import { useOauthContext } from "../lib/oauthProvider";
 
 export const TopPage = function(
@@ -18,7 +19,6 @@ export const TopPage = function(
       <><button onClick={e => {e.preventDefault();oauthContext.loggedIn?.logout();}}>logout</button><br/></>
       : <></>
     }
-    <Link to="/main">main page</Link><br />
-    <Link to="/sub">sub page</Link><br />
+    <NavigateComponent/>
   </>;
 }

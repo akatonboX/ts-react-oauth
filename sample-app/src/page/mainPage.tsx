@@ -1,4 +1,5 @@
 import { Link } from "react-router-dom";
+import { NavigateComponent } from "../component/navigateComponent ";
 import { useOauthContext } from "../lib/oauthProvider";
 
 export const MainPage = function(
@@ -8,5 +9,6 @@ export const MainPage = function(
 ){
   return <>
     メインページ
+    <NavigateComponent/>
   </>;
 }
