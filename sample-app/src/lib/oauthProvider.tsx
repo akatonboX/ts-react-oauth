@@ -10,6 +10,8 @@ export interface OauthClientSettings{
   clientId: string;
   clientSecret: string;
   callbackUrl: string;
+  revokeTokenUrl: string;
+  createLogoutUrlFromAuthServer: (settings: OauthClientSettings) => string;
   scopes: string[];
 }
 
@@ -20,6 +22,8 @@ export interface OauthClientSettingProps{
   clientId: string;
   clientSecret: string;
   callbackUrl?: string;
+  revokeTokenUrl: string;
+  createLogoutUrlFromAuthServer: (settings: OauthClientSettings) => string;
   scopes?: string[];
 }
 
@@ -34,6 +38,8 @@ function propsToSettings(props: OauthClientSettingProps): OauthClientSettings{
     clientId: props.clientId,
     clientSecret: props.clientSecret,
     callbackUrl: props.callbackUrl != null ? props.callbackUrl : window.location.origin + process.env.PUBLIC_URL + OAUTH_DEFAULT_AUTHORIZED_PATH,
+    revokeTokenUrl: props.revokeTokenUrl,
+    createLogoutUrlFromAuthServer: props.createLogoutUrlFromAuthServer,
     scopes:  props.scopes != null ? Array.from(new Set([...props.scopes, "openid"])) : ["openid"],
   }
 }
@@ -42,7 +48,7 @@ export interface OauthContext{
   loggedIn?: {
     claim :any;
     defaultPath: string;
-    logout: () => void;
+    logout: (pathAfterLogin?: string) => void;
   },
   noLoggedIn?: {
     /*ログイン処理を開始する。*/
@@ -66,7 +72,10 @@ export const OauthProvider = function(
 ) {
 
   //アクセストークン、リフレッシュトークンを保持
-  const tokens = React.useRef<Tokens | undefined>(undefined);
+  const tokens = React.useRef<Tokens>({
+    accessToken: "",
+    refleshToken: ""
+  });
 
   //ログイン状態を保持するstate
   const [loginState, setLoginState] = React.useState({
@@ -81,7 +90,58 @@ export const OauthProvider = function(
     loggedIn: loginState.isLogin ? {
       claim: {},
       defaultPath: loginState.defaultPath,
-      logout: () => {},
+      logout: async (pathAfterLogin) => {
+        //■refleshTokenの破棄
+        await (function () {
+          return new Promise<void>(function (resolve, reject) {
+            var xhr = new XMLHttpRequest();
+            xhr.withCredentials = true;
+            xhr.open("POST", clientSettings.revokeTokenUrl, true);
+            xhr.setRequestHeader("Content-Type", "application/x-www-form-urlencoded");
+            xhr.setRequestHeader("Cache-Control", "no-store");
+            xhr.setRequestHeader("Authorization", "Basic " + window.btoa(clientSettings.clientId + ":" + clientSettings.clientSecret));
+            xhr.onreadystatechange = () => {
+              if (xhr.readyState === XMLHttpRequest.DONE) {
+                if(xhr.status !== 200){
+                  console.error("revoke tokenに失敗。", xhr);
+                }
+                resolve();
+              }
+            }
+            xhr.send(`client_id=${encodeURIComponent(clientSettings.clientId)}&client_secret=${encodeURIComponent(clientSettings.clientSecret)}&token=${encodeURIComponent(tokens.current.refleshToken)}`);
+          });
+        }());
+console.log("★1")
+        //■認証サーバからログアウト
+        await (function () {
+          return new Promise<void>(function (resolve, reject) {
+            var xhr = new XMLHttpRequest();
+            xhr.withCredentials = true;
+            xhr.open("GET", clientSettings.createLogoutUrlFromAuthServer(clientSettings), true);
+            xhr.setRequestHeader("Cache-Control", "no-store");
+            xhr.onreadystatechange = () => {
+              if (xhr.readyState === XMLHttpRequest.DONE) {
+                if(xhr.status !== 200){
+                  console.error("認証サーバからログアウトに失敗。", xhr);
+                }
+                resolve();
+              }
+            }
+            xhr.send();
+          });
+        }());
+        console.log("★3")
+        //■tokenの破棄
+        tokens.current = {
+          accessToken: "",
+          refleshToken: ""
+        }
+        //■login stateの書き換え
+        setLoginState({
+          isLogin: false,
+          defaultPath: ""
+        })
+      },
     } : undefined,
     noLoggedIn: !loginState.isLogin ? {
       login: (pathAfterLogin) => {
@@ -118,6 +178,7 @@ export const OauthProvider = function(
 
           //■アクセストークン取得
           var xhr = new XMLHttpRequest();
+          xhr.withCredentials = true;
           xhr.open("POST", clientSettings.tokenUrl, true);
           xhr.setRequestHeader("Content-Type", "application/x-www-form-urlencoded");
           xhr.setRequestHeader("Cache-Control", "no-store");

@@ -16,7 +16,15 @@ function App() {
     }
   }, []);
   return (
-    <OauthProvider authUrl="http://localhost:9000/oauth2/authorize" tokenUrl="http://localhost:9000/oauth2/token" clientId="example" clientSecret="secret" callbackUrl="http://127.0.0.1:3000/oauth/authorized">
+    <OauthProvider 
+      authUrl="http://localhost:9000/oauth2/authorize" 
+      tokenUrl="http://localhost:9000/oauth2/token" 
+      clientId="example" 
+      clientSecret="secret" 
+      callbackUrl="http://127.0.0.1:3000/oauth/authorized"
+      revokeTokenUrl="http://localhost:9000/oauth2/revoke"
+      createLogoutUrlFromAuthServer={(settings => "http://localhost:9000/logout")}
+      >
       <BrowserRouter>
         <OauthRoutes>
           <OauthRoutes.Public>

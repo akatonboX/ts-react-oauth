@@ -52,6 +52,7 @@ public class AuthorizationServerConfiguration  {
   public SecurityFilterChain authServerSecurityFilterChain(HttpSecurity http) throws Exception {
       OAuth2AuthorizationServerConfiguration.applyDefaultSecurity(http);
       http.formLogin(Customizer.withDefaults());
+      http.logout(logout-> logout.logoutUrl("/logout"));
       http.csrf().disable();
       http.cors().configurationSource(
         ((Supplier<CorsConfigurationSource >) () -> {
@@ -69,7 +70,7 @@ public class AuthorizationServerConfiguration  {
       return http.build();
   }
 
-  
+
 
   @Bean
   public RegisteredClientRepository registeredClientRepository() {

@@ -25,6 +25,7 @@ public class SecurityConfig {
   SecurityFilterChain defaultSecurityFilterChain(HttpSecurity http) throws Exception {
     http.authorizeRequests(authorizeRequests -> authorizeRequests.anyRequest().authenticated())
       .formLogin(Customizer.withDefaults());
+      http.logout(logout-> logout.logoutUrl("/logout"));
       http.csrf().disable();
       http.cors().configurationSource(
         ((Supplier<CorsConfigurationSource >) () -> {
