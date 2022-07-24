@@ -23,7 +23,7 @@ function App() {
       clientSecret="secret" 
       callbackUrl="http://127.0.0.1:3000/oauth/authorized"
       revokeTokenUrl="http://localhost:9000/oauth2/revoke"
-      createLogoutUrlFromAuthServer={(settings => "http://localhost:9000/logout")}
+      createLogoutUrlFromAuthServer={(settings => "http://localhost:9000/outh2/logout")}
       >
       <BrowserRouter>
         <OauthRoutes>

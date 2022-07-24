@@ -12,6 +12,9 @@ import java.util.UUID;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.Ordered;
@@ -19,6 +22,7 @@ import org.springframework.core.annotation.Order;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.OAuth2AuthorizationServerConfiguration;
+import org.springframework.security.core.Authentication;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.oauth2.core.AuthorizationGrantType;
 import org.springframework.security.oauth2.core.ClientAuthenticationMethod;
@@ -31,6 +35,7 @@ import org.springframework.security.oauth2.server.authorization.config.TokenSett
 import org.springframework.security.oauth2.server.authorization.token.JwtEncodingContext;
 import org.springframework.security.oauth2.server.authorization.token.OAuth2TokenCustomizer;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.logout.LogoutHandler;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
@@ -52,7 +57,15 @@ public class AuthorizationServerConfiguration  {
   public SecurityFilterChain authServerSecurityFilterChain(HttpSecurity http) throws Exception {
       OAuth2AuthorizationServerConfiguration.applyDefaultSecurity(http);
       http.formLogin(Customizer.withDefaults());
-      http.logout(logout-> logout.logoutUrl("/logout"));
+      http.logout(logout-> logout.logoutUrl("/outh2/logout").addLogoutHandler(new LogoutHandler(){
+        @Override
+        public void logout(HttpServletRequest request, HttpServletResponse response, Authentication authentication) {
+          request.getSession().getAttributeNames().asIterator().forEachRemaining((name) -> {
+            var value = request.getSession().getAttribute(name);
+            log.info("name={}, value={}", name, value);
+          });
+        }
+      }));
       http.csrf().disable();
       http.cors().configurationSource(
         ((Supplier<CorsConfigurationSource >) () -> {
