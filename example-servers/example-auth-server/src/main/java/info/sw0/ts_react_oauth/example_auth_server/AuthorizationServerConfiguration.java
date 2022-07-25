@@ -98,6 +98,7 @@ public class AuthorizationServerConfiguration  {
       .scope(OidcScopes.OPENID)
       .scope(OidcScopes.EMAIL)
       .scope(OidcScopes.PROFILE)
+      .scope("offline_access")
       .tokenSettings(TokenSettings.builder()
         .refreshTokenTimeToLive(Duration.ofDays(6))
         .reuseRefreshTokens(true).build())

@@ -150,7 +150,7 @@ console.log("★1")
         var url = new URL(clientSettings.authUrl);
         url.searchParams.append("response_type", "code");
         url.searchParams.append("client_id", clientSettings.clientId);
-        url.searchParams.append("hoge", "aaa");
+        url.searchParams.append("scope", "openid offline_access");
         url.searchParams.append("redirect_uri", clientSettings.callbackUrl);
         var state = uuidv4();
         sessionStorage.setItem("oauth_state", state);
@@ -159,54 +159,81 @@ console.log("★1")
         //■認可サーバーに遷移
         window.location.href = url.href;
       },
-      authorized: () => {
+      authorized: async () => {
         if(loginState.isLogin)return;//すでにログイン済みなら終了
 
         //■結果の取得
-        var url = new URL(window.location.href);
-        var code = url.searchParams.get("code");
+        console.log("★")
+        const url = new URL(window.location.href);
+        const code = url.searchParams.get("code");
         if(code == null)throw new Error("codeが存在しない");
-        var state = url.searchParams.get("state");
+        const state = url.searchParams.get("state");
         if(state == null)throw new Error("stateが存在しない");
+
         //■stateの確認
-        var originState = sessionStorage.getItem("oauth_state");
-        //sessionStorage.removeItem("oauth_state");
-        if(state != null && originState != null && state.startsWith(originState)){//stateチェックOK
-
-          //■リダイレクト先の構築
-          var redirectPath = decodeURIComponent(state.substring(originState.length));
-
-          //■アクセストークン取得
-          var xhr = new XMLHttpRequest();
-          xhr.withCredentials = true;
-          xhr.open("POST", clientSettings.tokenUrl, true);
-          xhr.setRequestHeader("Content-Type", "application/x-www-form-urlencoded");
-          xhr.setRequestHeader("Cache-Control", "no-store");
-          xhr.setRequestHeader("Authorization", "Basic " + window.btoa(clientSettings.clientId + ":" + clientSettings.clientSecret));
-          xhr.onreadystatechange = () => {
-            if (xhr.readyState === XMLHttpRequest.DONE && xhr.status === 200) {
-              //■アクセストークンの格納
-              var result = JSON.parse(xhr.response);
-              var accessToken = result["access_token"] as string;
-              var refleshToken = result["refresh_token"] as string;
-              var tokenType = result["token_type"] as string;
-              if(tokenType != "Bearer")throw new Error(`サポート外のtoken_typeです。token_type=${tokenType}`);
-              
-              tokens.current = {
-                accessToken: accessToken,
-                refleshToken: refleshToken
-              }
-              setLoginState({
-                isLogin: true,
-                defaultPath: redirectPath
-              })
-            }
-          }
-          xhr.send(`grant_type=authorization_code&code=${encodeURIComponent(code)}&redirect_uri=${encodeURIComponent(clientSettings.callbackUrl)}&client_id=${encodeURIComponent(clientSettings.clientId)}`);
-        }
-        else{
+        const originState = sessionStorage.getItem("oauth_state");
+        if(state == null || originState == null || !state.startsWith(originState)){
           throw Error(`state checkの失敗。state=${state}, originState=${originState}`)
         }
+
+        //■リダイレクト先の構築
+        const redirectPath = decodeURIComponent(state.substring(originState.length));
+
+        //■認証コードでトークンを取得
+        const [idToken, accessToken, refleshToken] = await (function () {
+          return new Promise<[string, string, string]>(function (resolve, reject) {
+            const xhr = new XMLHttpRequest();
+            xhr.withCredentials = true;
+            xhr.open("POST", clientSettings.tokenUrl, true);
+            xhr.setRequestHeader("Content-Type", "application/x-www-form-urlencoded");
+            xhr.setRequestHeader("Authorization", "Basic " + window.btoa(clientSettings.clientId + ":" + clientSettings.clientSecret));
+            xhr.onreadystatechange = () => {
+              if (xhr.readyState === XMLHttpRequest.DONE) {
+                if(xhr.status !== 200){
+                  console.log(xhr.response);
+                  reject();
+                }
+                else{
+                  //■トークンの取得
+                  const result = JSON.parse(xhr.response);
+                  console.log("★★", result);
+                  const idToken = result["id_token"];
+                  const accessToken = result["access_token"];
+                  const refleshToken = result["refresh_token"];
+                  var tokenType = result["token_type"] as string;
+                  if(tokenType != "Bearer")throw new Error(`サポート外のtoken_typeです。token_type=${tokenType}`);
+                  resolve([idToken, accessToken, refleshToken]);
+                  
+                }
+              }
+            }
+            const searchParams = new  URLSearchParams();
+            searchParams.append("grant_type", "authorization_code");
+            searchParams.append("code", code);
+            searchParams.append("redirect_uri", clientSettings.callbackUrl);
+            searchParams.append("client_id", clientSettings.clientId);
+            searchParams.append("client_secret", clientSettings.clientSecret);
+            xhr.send(searchParams.toString());
+          });
+        }());
+
+        //■ID TOKENのチェック
+        console.log("★idtoken", atob(idToken))
+        const [header, payload, signature] = idToken.split(".").map(item => atob(item));
+        console.log("★idtoken", {header: header, payload: payload, signature: signature})
+        //todo
+
+        //■Tokenの格納
+        tokens.current = {
+          accessToken: accessToken,
+          refleshToken: refleshToken
+        };
+
+        //■ログイン状態の変更
+        setLoginState({
+          isLogin: true,
+          defaultPath: redirectPath
+        })
       },
     } : undefined,
     clientSettings: clientSettings,
